@@ -135,9 +135,9 @@ class PlayScene(AbstractScene):
     # World generation
     # ------------------------------------------------------------------
 
-    def _gen_vines(self, n):
+    def _gen_vines(self, n, start_x=None):
         vines = []
-        x = self.screen_w // 4   # start vines near left quarter so monkey swings right
+        x = start_x if start_x is not None else self.screen_w // 4
         for _ in range(n):
             length = random.randint(VINE_MIN_LEN, VINE_MAX_LEN)
             vines.append({"x": float(x), "y": float(ANCHOR_Y), "len": length})
@@ -153,6 +153,24 @@ class PlayScene(AbstractScene):
     def _gen_bananas(self, n):
         for i in range(n):
             wx = self.vines[0]["x"] + 200 + i * random.randint(200, 350)
+            wy = random.randint(int(self.screen_h * 0.25), int(self.screen_h * 0.65))
+            self.banana_group.add(Banana(wx, wy, scroll_speed=0))
+
+    def _extend_world(self):
+        """Generate more vines, obstacles, and bananas beyond the current world edge."""
+        last_x = self.vines[-1]["x"]
+        new_x = last_x + random.randint(int(VINE_SPACING * 0.85), int(VINE_SPACING * 1.2))
+        new_vines = self._gen_vines(15, start_x=new_x)
+        self.vines.extend(new_vines)
+
+        # Extra obstacles in the new region
+        for i in range(8):
+            wx = last_x + 150 + i * random.randint(280, 420)
+            self.obstacle_group.add(Obstacle(wx, self.ground_y, scroll_speed=0))
+
+        # Extra bananas in the new region
+        for i in range(10):
+            wx = last_x + 100 + i * random.randint(200, 350)
             wy = random.randint(int(self.screen_h * 0.25), int(self.screen_h * 0.65))
             self.banana_group.add(Banana(wx, wy, scroll_speed=0))
 
@@ -223,7 +241,7 @@ class PlayScene(AbstractScene):
                 # Use 1.5× vine length as vertical buffer (forgiving grab zone).
                 dx = abs(mx - v["x"])
                 in_vine_zone = my < v["y"] + v["len"] * 1.5
-                if dx < self.grab_radius and in_vine_zone and mx > v["x"] - self.grab_radius:
+                if dx < self.grab_radius and in_vine_zone:
                     self._attach_monkey(i)
                     if i not in self.grabbed_vines:
                         self.grabbed_vines.add(i)
@@ -232,6 +250,10 @@ class PlayScene(AbstractScene):
                             self.handler.score += 1
                         self._spawn_particles(mx, my, (34, 200, 34))
                     break
+
+        # --- Extend world when running low on vines ---
+        if self.current_vine >= len(self.vines) - 10:
+            self._extend_world()
 
         # --- Ground collision ---
         if my >= self.ground_y - Monkey.RADIUS:

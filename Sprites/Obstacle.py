@@ -56,11 +56,21 @@ class Obstacle(pygame.sprite.Sprite):
             self.kill()
 
     def collides_with(self, world_x, world_y, radius=18):
-        """Check collision against world-space coordinates."""
+        """Check collision against world-space coordinates (trunk + canopy)."""
         cx = int(self.world_x)
-        left = cx - self.width // 2
-        right = cx + self.width // 2
-        top = self.ground_y - self.trunk_h
-        bottom = self.ground_y
-        return (left - radius < world_x < right + radius and
-                top - radius < world_y < bottom + radius)
+
+        # Trunk collision (rectangle)
+        trunk_left = cx - self.trunk_w // 2
+        trunk_right = cx + self.trunk_w // 2
+        trunk_top = self.ground_y - self.trunk_h
+        trunk_bottom = self.ground_y
+        in_trunk = (trunk_left - radius < world_x < trunk_right + radius and
+                    trunk_top - radius < world_y < trunk_bottom + radius)
+
+        # Canopy collision (circle centred above trunk top)
+        canopy_cy = self.ground_y - self.trunk_h - self.canopy_r
+        dx = world_x - cx
+        dy = world_y - canopy_cy
+        in_canopy = (dx * dx + dy * dy) < (self.canopy_r + radius) ** 2
+
+        return in_trunk or in_canopy
