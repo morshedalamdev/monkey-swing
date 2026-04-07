@@ -52,11 +52,22 @@ SCROLL_SPEED = 4      # px/frame for obstacles / bananas
 
 
 class PlayScene(AbstractScene):
+    """
+    difficulty (int): 1 = easy (wider grab radius, slower camera),
+                      2 = medium, 3 = hard (tighter grab radius, faster scroll).
+    """
+
+    # Per-difficulty tuning
+    _DIFFICULTY_GRAB   = {1: 110, 2: 90, 3: 70}   # GRAB_X_RADIUS per level
+    _DIFFICULTY_OMEGA  = {1: 1.5, 2: 1.8, 3: 2.1}  # initial swing energy per level
+
     def __init__(self, screen_w, screen_h, difficulty=1):
         super().__init__()
         self.screen_w = screen_w
         self.screen_h = screen_h
-        self.difficulty = difficulty
+        self.difficulty = max(1, min(3, difficulty))
+        self.grab_radius = self._DIFFICULTY_GRAB[self.difficulty]
+        self.init_omega  = self._DIFFICULTY_OMEGA[self.difficulty]
         self.ground_y = int(screen_h * GROUND_FRAC)
 
         self.back_btn = Button("← Menu", (10, 10), font_size=24, bg=(60, 60, 160))
@@ -111,7 +122,7 @@ class PlayScene(AbstractScene):
         )
         # Start with monkey on the LEFT of anchor, swinging RIGHTWARD.
         # Releasing at ~angle=+0.3 sends monkey forward-and-up to next vine.
-        self._attach_monkey(0, initial_angle=-0.4, initial_omega=1.5)
+        self._attach_monkey(0, initial_angle=-0.4, initial_omega=self.init_omega)
 
         # Pre-populate obstacles and bananas
         self._gen_obstacles(20)
@@ -212,7 +223,7 @@ class PlayScene(AbstractScene):
                 # Use 1.5× vine length as vertical buffer (forgiving grab zone).
                 dx = abs(mx - v["x"])
                 in_vine_zone = my < v["y"] + v["len"] * 1.5
-                if dx < GRAB_X_RADIUS and in_vine_zone and mx > v["x"] - GRAB_X_RADIUS:
+                if dx < self.grab_radius and in_vine_zone and mx > v["x"] - self.grab_radius:
                     self._attach_monkey(i)
                     if i not in self.grabbed_vines:
                         self.grabbed_vines.add(i)
@@ -251,9 +262,7 @@ class PlayScene(AbstractScene):
         target_cam = mx - self.screen_w // 3
         self.camera_x += (target_cam - self.camera_x) * 0.08
 
-        # --- Scroll obstacles and bananas (world-space scroll) ---
-        for obs in self.obstacle_group.sprites():
-            obs.world_x = obs.world_x  # positions are in world space; no update needed
+        # --- Update parallax scroll offset ---
         self.scroll_offset = int(self.camera_x * 0.3) % (self.screen_w + 200)
 
         # --- Update particles ---
