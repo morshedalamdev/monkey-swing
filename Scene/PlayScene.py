@@ -237,8 +237,9 @@ class PlayScene(AbstractScene):
             for i, v in enumerate(self.vines):
                 if i <= self.current_vine:
                     continue
-                # Grab when monkey passes through the vine's horizontal band.
-                # Use 1.5× vine length as vertical buffer (forgiving grab zone).
+                # dx: horizontal distance to vine anchor.
+                # in_vine_zone: monkey must be above 1.5× vine length below anchor
+                #   (vertical grab window — generous to be forgiving).
                 dx = abs(mx - v["x"])
                 in_vine_zone = my < v["y"] + v["len"] * 1.5
                 if dx < self.grab_radius and in_vine_zone:
@@ -252,6 +253,8 @@ class PlayScene(AbstractScene):
                     break
 
         # --- Extend world when running low on vines ---
+        # After _extend_world() appends 15 vines, len(self.vines) grows by 15 so
+        # this condition won't re-trigger until the monkey crosses 5 more vines.
         if self.current_vine >= len(self.vines) - 10:
             self._extend_world()
 
